@@ -4,7 +4,7 @@ import "./App.css";
 function App() {
   return (
     <div className="min-h-screen bg-gray-100">
-      <WarehouseLayout width={1000} height={700} gridSize={20} />
+      <WarehouseLayout width={1000} height={700} />
     </div>
   );
 }
