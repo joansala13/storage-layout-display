@@ -1,6 +1,6 @@
 import React from "react";
 import { useDraggable } from "@dnd-kit/core";
-import type { Position } from "./WarehouseLayout";
+import type { Position } from "../data/Locations";
 
 interface ItemProps {
   id: string;
@@ -15,16 +15,24 @@ export const Item: React.FC<ItemProps> = ({
   isDragging = false,
   onClick,
 }) => {
-  const { attributes, listeners, setNodeRef, transform } = useDraggable({
+  const {
+    attributes = {},
+    listeners,
+    setNodeRef,
+    transform,
+  } = useDraggable({
     id: id,
   });
 
-  const handleClick = (e: React.MouseEvent) => {
-    // Solo permitir click si no se está arrastrando
-    if (!isDragging && onClick) {
-      e.stopPropagation();
-      onClick();
-    }
+  // No usamos click corto para abrir modal (para no interferir con drag).
+  // Simplemente reenviamos los listeners que devuelve useDraggable.
+  const mergedListeners: Record<string, unknown> = {
+    ...(listeners || {}),
+  };
+
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onClick) onClick();
   };
 
   const style = {
@@ -43,21 +51,21 @@ export const Item: React.FC<ItemProps> = ({
     <div
       ref={setNodeRef}
       style={style}
-      {...listeners}
+      {...mergedListeners}
       {...attributes}
-      onClick={handleClick}
+      onDoubleClick={handleDoubleClick}
       className={`
-        ${position.color || "bg-blue-500"} 
-        ${isDragging ? "opacity-50" : "opacity-100"}
-        border-2 border-gray-700 rounded shadow-lg 
-        flex items-center justify-center 
-        text-white font-bold 
+        ${position.color || "bg-blue-500"}
+        ${isDragging ? "opacity-60" : "opacity-100"}
+        border border-gray-600 rounded
+        flex items-center justify-center
+        text-white font-semibold text-xs
         cursor-grab active:cursor-grabbing
-        hover:shadow-xl transition-shadow duration-200
+        hover:shadow-lg hover:border-gray-800 transition-all duration-200
         select-none
       `}
     >
-      <span className="text-sm">{position.label}</span>
+      <span className="text-xs whitespace-nowrap">{position.label}</span>
     </div>
   );
 };

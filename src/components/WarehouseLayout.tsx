@@ -1,25 +1,11 @@
-import React, { useState } from "react";
-import { DndContext, DragOverlay } from "@dnd-kit/core";
+import React, { useEffect, useState } from "react";
+import { DndContext } from "@dnd-kit/core";
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
 import { Item } from "./Item";
 import { DroppableArea } from "./DroppableArea";
 import { ItemModal } from "./ItemModal";
-
-export interface Floor {
-  level: number;
-  product: string;
-}
-
-export interface Position {
-  id: string;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  label: string;
-  color?: string;
-  floors: Floor[];
-}
+import type { Position } from "../data/Locations";
+import { loadLocations, sampleLocations, GAP_X } from "../data/Locations";
 
 interface WarehouseLayoutProps {
   width?: number;
@@ -28,59 +14,44 @@ interface WarehouseLayoutProps {
 }
 
 export const WarehouseLayout: React.FC<WarehouseLayoutProps> = ({
-  width = 800,
-  height = 600,
+  width = 1200,
+  height = 1000,
   gridSize = 20,
 }) => {
-  const [items, setItems] = useState<Position[]>([
-    {
-      id: "1",
-      x: 100,
-      y: 100,
-      width: 80,
-      height: 60,
-      label: "A1",
-      color: "bg-blue-500",
-      floors: [
-        { level: 1, product: "Producto Alpha" },
-        { level: 2, product: "Producto Beta" },
-        { level: 3, product: "Producto Gamma" },
-      ],
-    },
-    {
-      id: "2",
-      x: 200,
-      y: 150,
-      width: 100,
-      height: 80,
-      label: "B1",
-      color: "bg-green-500",
-      floors: [
-        { level: 1, product: "Artículo X" },
-        { level: 2, product: "Artículo Y" },
-      ],
-    },
-    {
-      id: "3",
-      x: 350,
-      y: 200,
-      width: 120,
-      height: 60,
-      label: "C1",
-      color: "bg-red-500",
-      floors: [
-        { level: 1, product: "Material Delta" },
-        { level: 2, product: "Material Epsilon" },
-        { level: 3, product: "Material Zeta" },
-        { level: 4, product: "Material Eta" },
-      ],
-    },
-  ]);
+  const [items, setItems] = useState<Position[]>(sampleLocations);
 
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  // Ya no guardamos offset de arrastre porque no usamos DragOverlay
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<Position | null>(null);
+
+  // Cargar datos reales desde /public/Location.txt si está disponible
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        console.log("🔄 Intentando cargar /Location.txt...");
+        const data = await loadLocations("/Location.txt", {
+          includeHeightZero: false,
+        });
+        if (mounted && data.length) {
+          console.log(
+            `✅ Cargadas ${data.length} posiciones desde Location.txt`
+          );
+          setItems(data);
+        } else {
+          console.log("⚠️ Location.txt vacío, usando datos de muestra");
+        }
+      } catch (err) {
+        console.error("❌ No se pudo cargar /Location.txt:", err);
+        console.log("📦 Usando datos de muestra (sampleLocations)");
+        // Si no existe el fichero en public, nos quedamos con sampleLocations
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const handleItemClick = (item: Position) => {
     setSelectedItem(item);
@@ -94,22 +65,6 @@ export const WarehouseLayout: React.FC<WarehouseLayoutProps> = ({
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id as string);
-
-    // Calcular el offset desde el punto de click hasta la esquina del elemento
-    const item = items.find((item) => item.id === event.active.id);
-    if (item && event.activatorEvent) {
-      const rect = (
-        event.activatorEvent.target as HTMLElement
-      ).getBoundingClientRect();
-      const activatorEvent = event.activatorEvent as MouseEvent;
-      const clickX = activatorEvent.clientX;
-      const clickY = activatorEvent.clientY;
-
-      setDragOffset({
-        x: clickX - rect.left,
-        y: clickY - rect.top,
-      });
-    }
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -139,10 +94,14 @@ export const WarehouseLayout: React.FC<WarehouseLayoutProps> = ({
     }
 
     setActiveId(null);
-    setDragOffset({ x: 0, y: 0 });
   };
 
-  const activeItem = items.find((item) => item.id === activeId);
+  // activeItem and dragOffset no se usan porque eliminamos el DragOverlay
+
+  // Extraer pasillos únicos para etiquetas
+  const aisles = Array.from(
+    new Set(items.map((item) => item.id.split("-")[0]))
+  ).sort((a, b) => parseInt(a) - parseInt(b));
 
   // Crear líneas de grilla
   const gridLines = [];
@@ -180,87 +139,80 @@ export const WarehouseLayout: React.FC<WarehouseLayoutProps> = ({
   return (
     <div className="flex flex-col items-center p-6 bg-gray-50 min-h-screen">
       <h1 className="text-3xl font-bold text-gray-800 mb-6">
-        Layout de Almacén
+        Layout de Almacén ({items.length} posiciones)
       </h1>
 
-      <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+      <div className="bg-white rounded-lg shadow-lg overflow-auto">
         <DndContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-          <div
-            className="relative border-2 border-gray-300 bg-white"
-            style={{ width, height }}
-          >
-            {/* Grilla de fondo */}
-            <svg
-              className="absolute top-0 left-0 pointer-events-none"
-              width={width}
-              height={height}
-              style={{
-                width: `${width}px`,
-                height: `${height}px`,
-                position: "absolute",
-                top: 0,
-                left: 0,
-              }}
+          <div className="flex flex-col">
+            {/* Header superior con etiquetas de pasillo (columnas) */}
+            <div className="flex bg-gray-100 border-b-2 border-gray-300">
+              <div className="w-6 border-r-2 border-gray-300 flex items-center justify-center font-bold text-xs text-gray-700 writing-mode-vertical">
+                P
+              </div>
+              {aisles.map((aisle) => {
+                // Encontrar el primer item de este pasillo para calcular su posición X
+                const firstItem = items.find((item) =>
+                  item.id.startsWith(aisle + "-")
+                );
+                if (!firstItem) return null;
+                return (
+                  <div
+                    key={aisle}
+                    className="flex items-center justify-center py-2 text-xs font-semibold text-gray-700 bg-gray-50 border-r border-gray-200"
+                    style={{
+                      width: `${firstItem.width + GAP_X}px`,
+                      minWidth: `${firstItem.width}px`,
+                    }}
+                  >
+                    {aisle}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Canvas principal */}
+            <div
+              className="relative border-2 border-gray-300 bg-white"
+              style={{ width, height }}
             >
-              {gridLines}
-            </svg>
-
-            {/* Área droppable */}
-            <DroppableArea id="warehouse" width={width} height={height}>
-              {/* Items del almacén */}
-              {items.map((item) => (
-                <Item
-                  key={item.id}
-                  id={item.id}
-                  position={item}
-                  isDragging={item.id === activeId}
-                  onClick={() => handleItemClick(item)}
-                />
-              ))}
-            </DroppableArea>
-          </div>
-
-          {/* Overlay para el item que se está arrastrando */}
-          <DragOverlay>
-            {activeItem ? (
-              <div
-                className={`${activeItem.color} bg-opacity-80 border-2 border-gray-700 rounded shadow-lg flex items-center justify-center text-white font-bold cursor-grabbing`}
+              {/* Grilla de fondo */}
+              <svg
+                className="absolute top-0 left-0 pointer-events-none"
+                width={width}
+                height={height}
                 style={{
-                  width: activeItem.width,
-                  height: activeItem.height,
-                  transform: `translate(-${dragOffset.x}px, -${dragOffset.y}px)`,
+                  width: `${width}px`,
+                  height: `${height}px`,
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
                 }}
               >
-                {activeItem.label}
-              </div>
-            ) : null}
-          </DragOverlay>
+                {gridLines}
+              </svg>
+
+              {/* Área droppable */}
+              <DroppableArea id="warehouse" width={width} height={height}>
+                {/* Items del almacén */}
+                {items.map((item) => (
+                  <Item
+                    key={item.id}
+                    id={item.id}
+                    position={item}
+                    isDragging={item.id === activeId}
+                    onClick={() => handleItemClick(item)}
+                  />
+                ))}
+              </DroppableArea>
+            </div>
+          </div>
+
+          {/* DragOverlay eliminado para evitar 'sombra' del elemento al arrastrar */}
         </DndContext>
       </div>
 
-      {/* Panel de información */}
-      <div className="mt-6 bg-white p-4 rounded-lg shadow-lg w-full max-w-4xl">
-        <h2 className="text-xl font-semibold mb-4">Posiciones Actuales</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {items.map((item) => (
-            <div key={item.id} className="border p-3 rounded-lg">
-              <div className="flex items-center gap-2 mb-2">
-                <div className={`w-4 h-4 ${item.color} rounded`}></div>
-                <span className="font-semibold">{item.label}</span>
-              </div>
-              <div className="text-sm text-gray-600">
-                <p>
-                  X: {item.x}px, Y: {item.y}px
-                </p>
-                <p>
-                  Tamaño: {item.width} × {item.height}px
-                </p>
-                <p>Pisos ocupados: {item.floors.length}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+      {/* Panel de información eliminado temporalmente */}
 
       {/* Modal de información del item */}
       {selectedItem && (
