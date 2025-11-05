@@ -19,13 +19,13 @@ export interface Position {
 }
 
 // Parámetros de layout
-// Cada pasillo (NN) = una FILA horizontal
-// Cada posición (PPP) = una COLUMNA dentro de esa fila
+// Cada pasillo (NN) = una columna vertical
+// Cada posición (PPP) = una fila dentro de esa columna
 export const BOX_WIDTH = 50; // px - ancho de cada caja
 export const BOX_HEIGHT = 35; // px - alto de cada caja
-export const GAP_X = 8; // px - espacio entre posiciones (columnas)
-export const GAP_Y = 15; // px - espacio entre pasillos (filas)
-export const MARGIN = 20; // px - margen exterior
+export const GAP_X = 12; // px - espacio entre pasillos (columnas)
+export const GAP_Y = 10; // px - espacio entre posiciones (filas)
+export const MARGIN = 5; // px - pequeño margen exterior
 
 // Reglas y supuestos:
 // - Se procesan solo líneas que sean estrictamente 7 dígitos (^[0-9]{7}$)
