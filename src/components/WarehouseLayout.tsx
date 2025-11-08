@@ -2,7 +2,11 @@ import React, { useEffect, useState } from "react";
 import { Item } from "./Item";
 import { ItemModal } from "./ItemModal";
 import type { Position } from "../data/Locations";
-import { loadLocations, sampleLocations, GAP_X } from "../data/Locations";
+import {
+  loadLocationsWithMaterials,
+  sampleLocations,
+  GAP_X,
+} from "../data/Locations";
 
 interface WarehouseLayoutProps {
   width?: number;
@@ -17,25 +21,27 @@ export const WarehouseLayout: React.FC<WarehouseLayoutProps> = ({
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<Position | null>(null);
 
-  // Cargar datos reales desde /public/Location.txt si está disponible
+  // Cargar datos reales desde /public/Location_updated_rule1.txt con materiales
   useEffect(() => {
     let mounted = true;
     (async () => {
       try {
-        console.log("🔄 Intentando cargar /Location.txt...");
-        const data = await loadLocations("/Location.txt", {
-          includeHeightZero: false,
-        });
+        console.log("🔄 Intentando cargar /Location_updated_rule1.txt...");
+        const data = await loadLocationsWithMaterials(
+          "/Location_updated_rule1.txt"
+        );
         if (mounted && data.length) {
           console.log(
-            `✅ Cargadas ${data.length} posiciones desde Location.txt`
+            `✅ Cargadas ${data.length} posiciones con materiales desde Location_updated_rule1.txt`
           );
           setItems(data);
         } else {
-          console.log("⚠️ Location.txt vacío, usando datos de muestra");
+          console.log(
+            "⚠️ Location_updated_rule1.txt vacío, usando datos de muestra"
+          );
         }
       } catch (err) {
-        console.error("❌ No se pudo cargar /Location.txt:", err);
+        console.error("❌ No se pudo cargar /Location_updated_rule1.txt:", err);
         console.log("📦 Usando datos de muestra (sampleLocations)");
         // Si no existe el fichero en public, nos quedamos con sampleLocations
       }

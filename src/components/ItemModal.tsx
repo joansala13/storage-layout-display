@@ -1,8 +1,8 @@
-import React from "react";
+import React, { useEffect, useRef, useCallback } from "react";
 
 interface Floor {
   level: number;
-  product: string;
+  materials: string[];
 }
 
 interface ItemModalProps {
@@ -18,22 +18,64 @@ export const ItemModal: React.FC<ItemModalProps> = ({
   itemLabel,
   floors,
 }) => {
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+
+  const handleKey = useCallback(
+    (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    },
+    [onClose]
+  );
+
+  useEffect(() => {
+    if (isOpen) {
+      document.addEventListener("keydown", handleKey);
+      // Enfocar el modal al abrir
+      requestAnimationFrame(() => dialogRef.current?.focus());
+    }
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [isOpen, handleKey]);
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[80vh] overflow-hidden">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modal-title"
+    >
+      {/* Overlay oscuro para crear contraste con el modal blanco */}
+      <div
+        style={{ backgroundColor: "rgba(0, 0, 0, 0.85)" }}
+        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <div
+        ref={dialogRef}
+        tabIndex={-1}
+        style={{ backgroundColor: "#ffffff" }}
+        className="relative bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 max-h-[80vh] overflow-hidden border-2 border-gray-300"
+      >
         {/* Header */}
-        <div className="bg-gray-50 px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-          <h2 className="text-xl font-semibold text-gray-800">
+        <div
+          style={{ backgroundColor: "#ffffff" }}
+          className="bg-white px-6 py-4 border-b-2 border-gray-300 flex justify-between items-center"
+        >
+          <h2
+            id="modal-title"
+            style={{ color: "#000000" }}
+            className="text-xl font-bold text-black"
+          >
             Posición {itemLabel}
           </h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            aria-label="Cerrar modal"
+            className="text-gray-700 hover:text-black transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 rounded"
           >
             <svg
-              className="w-6 h-6"
+              className="w-5 h-5"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -49,10 +91,13 @@ export const ItemModal: React.FC<ItemModalProps> = ({
         </div>
 
         {/* Content */}
-        <div className="p-6 max-h-96 overflow-y-auto">
+        <div
+          style={{ backgroundColor: "#ffffff" }}
+          className="p-6 max-h-96 overflow-y-auto bg-white"
+        >
           {floors.length === 0 ? (
             <div className="text-center py-8">
-              <div className="text-gray-400 mb-2">
+              <div className="text-gray-300 mb-3">
                 <svg
                   className="w-12 h-12 mx-auto"
                   fill="none"
@@ -67,37 +112,62 @@ export const ItemModal: React.FC<ItemModalProps> = ({
                   />
                 </svg>
               </div>
-              <p className="text-gray-500">No hay productos almacenados</p>
+              <p style={{ color: "#000000" }} className="text-black text-sm">
+                No hay productos almacenados
+              </p>
             </div>
           ) : (
-            <div className="space-y-3">
+            <ul className="space-y-4">
               {floors.map((floor) => (
-                <div
+                <li
                   key={floor.level}
-                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors"
+                  className="p-4 bg-gray-50 rounded-lg border border-gray-200"
                 >
-                  <div className="flex items-center space-x-3">
-                    <div className="bg-blue-500 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm font-semibold">
+                  <div className="flex items-center space-x-3 mb-3">
+                    <div className="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm font-semibold shadow-sm">
                       {floor.level}
                     </div>
-                    <span className="text-gray-700 font-medium">
+                    <span
+                      style={{ color: "#000000" }}
+                      className="text-black font-bold text-sm"
+                    >
                       Piso {floor.level}
                     </span>
                   </div>
-                  <div className="text-gray-900 font-semibold">
-                    {floor.product}
-                  </div>
-                </div>
+                  {floor.materials.length === 0 ? (
+                    <p
+                      style={{ color: "#666666" }}
+                      className="text-gray-600 text-xs ml-11"
+                    >
+                      Sin materiales
+                    </p>
+                  ) : (
+                    <ul className="ml-11 space-y-1">
+                      {floor.materials.map((material, idx) => (
+                        <li
+                          key={idx}
+                          style={{ color: "#000000" }}
+                          className="text-black text-xs font-mono bg-white px-2 py-1 rounded border border-gray-200"
+                        >
+                          {material}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </li>
               ))}
-            </div>
+            </ul>
           )}
         </div>
 
         {/* Footer */}
-        <div className="bg-gray-50 px-6 py-4 border-t border-gray-200 flex justify-end">
+        <div
+          style={{ backgroundColor: "#ffffff" }}
+          className="bg-white px-6 py-4 border-t-2 border-gray-300 flex justify-end"
+        >
           <button
             onClick={onClose}
-            className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors"
+            className="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-medium py-2 px-4 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400"
           >
             Cerrar
           </button>
