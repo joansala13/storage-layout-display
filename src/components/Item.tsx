@@ -18,6 +18,7 @@ export const Item: React.FC<ItemProps> = ({ position, onClick }) => {
     top: position.y,
     width: position.width,
     height: position.height,
+    backgroundColor: position.color || "#3b82f6", // amarillo si tiene color, azul por defecto
   };
 
   return (
@@ -25,7 +26,6 @@ export const Item: React.FC<ItemProps> = ({ position, onClick }) => {
       style={style}
       onDoubleClick={handleDoubleClick}
       className={`
-        ${position.color || "bg-blue-500"}
         border border-gray-600 rounded
         flex items-center justify-center
         text-white font-semibold text-xs

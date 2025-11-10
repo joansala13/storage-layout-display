@@ -3,7 +3,7 @@ import { Item } from "./Item";
 import { ItemModal } from "./ItemModal";
 import type { Position } from "../data/Locations";
 import {
-  loadLocationsWithMaterials,
+  loadLocationsWithComparison,
   sampleLocations,
   GAP_X,
 } from "../data/Locations";
@@ -20,36 +20,58 @@ export const WarehouseLayout: React.FC<WarehouseLayoutProps> = ({
   const [items, setItems] = useState<Position[]>(sampleLocations);
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<Position | null>(null);
+  const [showingEnd, setShowingEnd] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  // Cargar datos reales desde /public/Location_updated_rule1.txt con materiales
+  // Cargar datos iniciales con comparación desde el principio
   useEffect(() => {
     let mounted = true;
     (async () => {
       try {
-        console.log("🔄 Intentando cargar /Location_updated_rule1.txt...");
-        const data = await loadLocationsWithMaterials(
-          "/Location_updated_rule1.txt"
+        console.log("🔄 Cargando estado inicial con comparación...");
+        const data = await loadLocationsWithComparison(
+          "/Locations_init.txt",
+          "/Locations_end.txt",
+          false // Mostrar materiales de init, pero marcar las que cambian
         );
         if (mounted && data.length) {
           console.log(
-            `✅ Cargadas ${data.length} posiciones con materiales desde Location_updated_rule1.txt`
+            `✅ Cargadas ${data.length} posiciones con comparación desde Locations_init.txt`
           );
           setItems(data);
         } else {
-          console.log(
-            "⚠️ Location_updated_rule1.txt vacío, usando datos de muestra"
-          );
+          console.log("⚠️ Locations_init.txt vacío, usando datos de muestra");
         }
       } catch (err) {
-        console.error("❌ No se pudo cargar /Location_updated_rule1.txt:", err);
+        console.error("❌ No se pudo cargar /Locations_init.txt:", err);
         console.log("📦 Usando datos de muestra (sampleLocations)");
-        // Si no existe el fichero en public, nos quedamos con sampleLocations
       }
     })();
     return () => {
       mounted = false;
     };
   }, []);
+
+  const handleToggleView = async () => {
+    setLoading(true);
+    try {
+      // Cargar con comparación siempre, pero cambiar qué materiales mostrar
+      console.log(
+        `🔄 Cambiando a vista ${showingEnd ? "inicial" : "final"}...`
+      );
+      const data = await loadLocationsWithComparison(
+        "/Locations_init.txt",
+        "/Locations_end.txt",
+        !showingEnd // Si estamos en init (showingEnd=false), cambiar a end (true)
+      );
+      setItems(data);
+      setShowingEnd(!showingEnd);
+    } catch (err) {
+      console.error("❌ Error al cambiar vista:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleItemClick = (item: Position) => {
     setSelectedItem(item);
@@ -68,9 +90,38 @@ export const WarehouseLayout: React.FC<WarehouseLayoutProps> = ({
 
   return (
     <div className="flex flex-col items-center p-6 bg-gray-50 min-h-screen">
-      <h1 className="text-3xl font-bold text-gray-800 mb-6">
-        Layout de Almacén ({items.length} posiciones)
+      <h1 className="text-3xl font-bold text-gray-800 mb-4">
+        Layout de Almacén Leiria
       </h1>
+
+      {/* Botón para alternar entre init y end */}
+      <button
+        onClick={handleToggleView}
+        disabled={loading}
+        style={{
+          color: "#000000",
+          backgroundColor: showingEnd ? "#fbbf24" : "#3b82f6",
+        }}
+        className={`mb-6 px-6 py-3 rounded-lg font-semibold text-white shadow-lg transition-all ${
+          loading ? "opacity-50 cursor-not-allowed" : "hover:opacity-90"
+        }`}
+      >
+        {loading
+          ? "⏳ Cargando..."
+          : showingEnd
+          ? "🔄 Ver Estado Inicial"
+          : "🔄 Ver Estado Final"}
+      </button>
+
+      {showingEnd && (
+        <p style={{ color: "#000000" }} className="text-sm text-gray-700 mb-4">
+          Las posiciones en{" "}
+          <span className="font-bold" style={{ color: "#f59e0b" }}>
+            amarillo
+          </span>{" "}
+          han sido modificadas
+        </p>
+      )}
 
       <div className="bg-white rounded-lg shadow-lg overflow-auto">
         <div className="flex flex-col">

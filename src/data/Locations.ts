@@ -278,6 +278,118 @@ export async function loadLocationsWithMaterials(
   return parseLocationWithMaterials(text);
 }
 
+/**
+ * Compara los materiales de dos positions y retorna true si son diferentes
+ */
+function materialsChanged(floor1: Floor[], floor2: Floor[]): boolean {
+  // Si tienen diferente cantidad de floors, hay cambio
+  if (floor1.length !== floor2.length) return true;
+
+  // Comparar cada floor
+  for (let i = 0; i < floor1.length; i++) {
+    const f1 = floor1[i];
+    const f2 = floor2.find((f) => f.level === f1.level);
+
+    if (!f2) return true; // Floor no existe en el segundo
+
+    // Comparar materiales (ordenados)
+    const m1 = [...f1.materials].sort();
+    const m2 = [...f2.materials].sort();
+
+    if (m1.length !== m2.length) return true;
+    if (m1.some((mat, idx) => mat !== m2[idx])) return true;
+  }
+
+  return false;
+}
+
+/**
+ * Carga dos archivos (init y end) y retorna las posiciones con los materiales según el estado seleccionado
+ * @param initUrl - URL del archivo inicial (ej: "/Locations_init.txt")
+ * @param endUrl - URL del archivo final (ej: "/Locations_end.txt")
+ * @param showEnd - Si true, muestra materiales de end; si false, muestra materiales de init
+ * @param highlightColor - Color para marcar las posiciones modificadas (default: "#fbbf24" - amarillo)
+ * @returns Positions con materiales del estado seleccionado y color en las que cambiaron (SOLO si showEnd=true)
+ */
+export async function loadLocationsWithComparison(
+  initUrl: string = "/Locations_init.txt",
+  endUrl: string = "/Locations_end.txt",
+  showEnd: boolean = false,
+  highlightColor: string = "#fbbf24" // amarillo/orange
+): Promise<Position[]> {
+  console.log(`🔄 Cargando ${initUrl} y ${endUrl} para comparación...`);
+
+  // Cargar ambos archivos
+  const [resInit, resEnd] = await Promise.all([fetch(initUrl), fetch(endUrl)]);
+
+  if (!resInit.ok) throw new Error(`No se pudo cargar ${initUrl}`);
+  if (!resEnd.ok) throw new Error(`No se pudo cargar ${endUrl}`);
+
+  const [textInit, textEnd] = await Promise.all([
+    resInit.text(),
+    resEnd.text(),
+  ]);
+
+  const positionsInit = parseLocationWithMaterials(textInit);
+  const positionsEnd = parseLocationWithMaterials(textEnd);
+
+  // Crear mapas para búsqueda rápida
+  const initMap = new Map<string, Position>();
+  const endMap = new Map<string, Position>();
+  positionsInit.forEach((p) => initMap.set(p.id, p));
+  positionsEnd.forEach((p) => endMap.set(p.id, p));
+
+  // Obtener todas las posiciones únicas (union de ambos)
+  const allPositionIds = new Set([
+    ...positionsInit.map((p) => p.id),
+    ...positionsEnd.map((p) => p.id),
+  ]);
+
+  const result: Position[] = [];
+  let changedCount = 0;
+
+  for (const id of allPositionIds) {
+    const posInit = initMap.get(id);
+    const posEnd = endMap.get(id);
+
+    // Usar la posición base (init si existe, sino end)
+    const basePos = posInit || posEnd!;
+
+    // Determinar si hay cambios en materiales
+    const hasChanges =
+      posInit && posEnd
+        ? materialsChanged(posInit.floors, posEnd.floors)
+        : true; // Si solo existe en uno de los dos, es un cambio
+
+    // Crear la posición con los materiales del estado seleccionado
+    // IMPORTANTE: Solo aplicar color amarillo si estamos mostrando END y hay cambios
+    const position: Position = {
+      ...basePos,
+      floors: showEnd ? posEnd?.floors || [] : posInit?.floors || [],
+      color: showEnd && hasChanges ? highlightColor : undefined,
+    };
+
+    result.push(position);
+    if (hasChanges) changedCount++;
+  }
+
+  // Ordenar por pasillo y posición
+  result.sort((a, b) => {
+    const [aA, aP] = a.id.split("-").map((t) => parseInt(t, 10));
+    const [bA, bP] = b.id.split("-").map((t) => parseInt(t, 10));
+    return aA - bA || aP - bP;
+  });
+
+  console.log(
+    `✅ ${
+      result.length
+    } posiciones totales, ${changedCount} modificadas, mostrando materiales de ${
+      showEnd ? "END" : "INIT"
+    }${showEnd ? " con cambios marcados" : ""}`
+  );
+  return result;
+}
+
 // Muestra mínima para probar la UI sin carga asíncrona (solo unos ejemplos)
 // Ejemplo: 0300103 y 0300104 se convierten en una caja 03-001 con floors [3,4]
 const sampleCodes = ["0300103", "0300104", "0501702", "0501703", "0700305"];
